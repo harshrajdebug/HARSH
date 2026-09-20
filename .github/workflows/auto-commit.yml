@@ -2,13 +2,10 @@ name: Daily Auto Commit
 
 on:
   schedule:
-    # Three cron triggers spread across the day (UTC).
-    # Each run sleeps a random 0-50 min before committing,
-    # so the actual commit time is unpredictable.
-    - cron: "30 2 * * *"   # ~08:00 IST window
-    - cron: "0 9 * * *"    # ~14:30 IST window
-    - cron: "45 15 * * *"  # ~21:15 IST window
-  workflow_dispatch: {}     # manual trigger for testing
+    - cron: "30 2 * * *"
+    - cron: "0 9 * * *"
+    - cron: "45 15 * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -21,98 +18,428 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Random delay to avoid patterns
+      - name: Random delay
         run: |
-          DELAY=$((RANDOM % 3000))   # 0 – 2999 seconds (≈ 0–50 min)
-          echo "⏳ Sleeping $DELAY seconds before committing..."
+          DELAY=$((RANDOM % 3000))
+          echo "⏳ Sleeping $DELAY seconds..."
           sleep "$DELAY"
 
-      - name: Generate commit
+      - name: Generate DSA commit
         run: |
-          # ── Config ──
           git config user.name  "harshrajdebug"
           git config user.email "harshrajdebug@users.noreply.github.com"
 
-          # ── Pick a random number of files to touch (1-3) ──
-          FILE_COUNT=$(( RANDOM % 3 + 1 ))
+          # ── DSA Topics ──
+          TOPICS=("arrays" "linked-list" "stack" "queue" "trees" "graphs" "dynamic-programming" "sorting" "searching" "hashing" "heap" "recursion" "backtracking" "greedy" "bit-manipulation" "strings" "two-pointers" "sliding-window" "binary-search" "trie")
+          TOPIC="${TOPICS[$((RANDOM % ${#TOPICS[@]}))]}"
 
-          for i in $(seq 1 $FILE_COUNT); do
-            # Random directory depth (0-2 levels)
-            DEPTH=$(( RANDOM % 3 ))
-            DIR_PATH=""
-            DIRS=("src" "docs" "notes" "logs" "data" "utils" "lib" "config" "scripts" "tests")
-            for d in $(seq 1 $DEPTH); do
-              DIR_PATH="${DIR_PATH}${DIRS[$((RANDOM % ${#DIRS[@]}))]}/";
-            done
+          DIFFICULTIES=("easy" "medium" "hard")
+          DIFF="${DIFFICULTIES[$((RANDOM % ${#DIFFICULTIES[@]}))]}"
 
-            mkdir -p "${DIR_PATH:-.}"
+          mkdir -p "$TOPIC"
 
-            # Random file extension
-            EXTS=("md" "txt" "json" "log" "yaml" "py" "sh" "cfg")
-            EXT="${EXTS[$((RANDOM % ${#EXTS[@]}))]}"
+          # ── Pick a problem based on topic ──
+          declare -A PROBLEMS
+          PROBLEMS[arrays]="two_sum|find_max_subarray|rotate_array|merge_sorted_arrays|product_except_self|contains_duplicate|max_profit_stock|move_zeroes|three_sum|next_permutation|spiral_matrix|set_matrix_zeroes|longest_consecutive_sequence|trap_rain_water|jump_game"
+          PROBLEMS[linked-list]="reverse_linked_list|merge_two_lists|detect_cycle|remove_nth_node|add_two_numbers|flatten_list|copy_random_pointer|sort_list|intersection_of_lists|palindrome_linked_list|reorder_list|swap_pairs|rotate_list|partition_list|reverse_k_group"
+          PROBLEMS[stack]="valid_parentheses|min_stack|next_greater_element|evaluate_rpn|daily_temperatures|largest_rectangle_histogram|decode_string|asteroid_collision|basic_calculator|trapping_rain_water_stack|remove_duplicate_letters|car_fleet|online_stock_span|max_frequency_stack|validate_stack_sequences"
+          PROBLEMS[queue]="implement_queue_using_stack|sliding_window_maximum|design_circular_queue|rotting_oranges|number_of_islands_bfs|walls_and_gates|task_scheduler|design_hit_counter|moving_average|shortest_path_binary_matrix|open_the_lock|snakes_and_ladders|jump_game_bfs|perfect_squares_bfs|word_ladder"
+          PROBLEMS[trees]="max_depth_binary_tree|invert_binary_tree|level_order_traversal|validate_bst|lowest_common_ancestor|diameter_of_tree|balanced_binary_tree|path_sum|construct_from_inorder_preorder|serialize_deserialize|kth_smallest_bst|zigzag_traversal|right_side_view|flatten_to_linked_list|count_good_nodes"
+          PROBLEMS[graphs]="number_of_islands|clone_graph|course_schedule|pacific_atlantic_water|word_ladder_graph|surrounded_regions|graph_valid_tree|shortest_path_dijkstra|topological_sort|minimum_spanning_tree|network_delay_time|cheapest_flights|alien_dictionary|word_search_board|reconstruct_itinerary"
+          PROBLEMS[dynamic-programming]="climbing_stairs|house_robber|longest_increasing_subsequence|coin_change|edit_distance|longest_common_subsequence|word_break|unique_paths|decode_ways|partition_equal_subset|knapsack_01|palindrome_partitioning|maximum_product_subarray|min_cost_climbing_stairs|interleaving_string"
+          PROBLEMS[sorting]="bubble_sort|selection_sort|insertion_sort|merge_sort|quick_sort|heap_sort|counting_sort|radix_sort|bucket_sort|sort_colors|kth_largest_element|merge_intervals|meeting_rooms|largest_number|wiggle_sort"
+          PROBLEMS[searching]="binary_search|search_rotated_array|find_peak_element|search_2d_matrix|find_first_last_position|sqrt_x|search_insert_position|koko_eating_bananas|median_two_sorted_arrays|find_minimum_rotated|capacity_to_ship|split_array_largest_sum|aggressive_cows|allocate_books|painters_partition"
+          PROBLEMS[hashing]="two_sum_hashmap|group_anagrams|valid_anagram|longest_substring_no_repeat|subarray_sum_equals_k|top_k_frequent|contiguous_array|lru_cache|isomorphic_strings|word_pattern|find_duplicates|happy_number|count_primes_sieve|encode_decode_strings|longest_palindrome"
+          PROBLEMS[heap]="kth_largest_stream|merge_k_sorted_lists|find_median_stream|top_k_frequent_heap|task_scheduler_heap|reorganize_string|k_closest_points|smallest_range|ugly_number|super_ugly_number|meeting_rooms_ii|ipo_problem|skyline_problem|sliding_window_median|trapping_rain_water_heap"
+          PROBLEMS[recursion]="fibonacci|power_of_two|generate_parentheses|subsets|permutations|letter_combinations|combination_sum|tower_of_hanoi|flood_fill|pow_x_n|count_and_say|flatten_nested_list|different_ways_to_compute|strobogrammatic_number|expression_add_operators"
+          PROBLEMS[backtracking]="n_queens|sudoku_solver|word_search|combination_sum_bt|palindrome_partitioning_bt|restore_ip_addresses|letter_case_permutation|generate_abbreviations|partition_to_k_equal_sum|matchsticks_to_square|path_with_max_gold|unique_paths_obstacles|rat_in_a_maze|knight_tour|m_coloring"
+          PROBLEMS[greedy]="activity_selection|fractional_knapsack|jump_game_greedy|gas_station|candy_distribution|minimum_platforms|job_sequencing|huffman_coding|partition_labels|queue_reconstruction|minimum_arrows|hand_of_straights|remove_k_digits|boats_to_save_people|maximum_units_on_truck"
+          PROBLEMS[bit-manipulation]="single_number|count_bits|reverse_bits|missing_number|power_of_two_bits|hamming_distance|subsets_bitmask|number_complement|total_hamming_distance|bitwise_and_range|gray_code|maximum_xor|decode_xored_array|sum_two_integers|utf8_validation"
+          PROBLEMS[strings]="reverse_string|valid_palindrome|longest_palindrome_substring|string_to_integer|count_and_say_str|zigzag_conversion|implement_strstr|multiply_strings|group_anagrams_str|minimum_window_substring|longest_repeating_replacement|encode_decode|palindromic_substrings|word_break_str|rabin_karp"
+          PROBLEMS[two-pointers]="two_sum_sorted|three_sum_tp|container_with_most_water|remove_duplicates_sorted|valid_palindrome_tp|sort_colors_tp|trapping_rain_water_tp|four_sum|backspace_string_compare|boats_to_save_tp|partition_labels_tp|longest_mountain|push_dominoes|fruit_into_baskets|max_consecutive_ones"
+          PROBLEMS[sliding-window]="max_sum_subarray_k|longest_substring_k_distinct|minimum_window_substr|fruit_into_baskets_sw|permutation_in_string|find_all_anagrams|longest_repeating_sw|max_consecutive_ones_sw|grumpy_bookstore|max_points_from_cards|count_nice_subarrays|binary_subarrays_with_sum|shortest_subarray_sum|minimum_operations|subarrays_product_less_k"
+          PROBLEMS[binary-search]="binary_search_basic|search_rotated_bs|find_peak_bs|first_bad_version|search_insert_bs|find_min_rotated_bs|time_based_store|koko_bananas_bs|capacity_ship_bs|split_array_bs|median_sorted_bs|aggressive_cows_bs|allocate_books_bs|magnetic_balls|painters_partition_bs"
+          PROBLEMS[trie]="implement_trie|word_search_ii|design_add_search|longest_word_dict|replace_words|map_sum_pairs|palindrome_pairs|stream_of_strings|maximum_xor_trie|concatenated_words|prefix_suffix_search|search_suggestions|word_abbreviation|magic_dictionary|auto_complete"
 
-            # Random file name
-            NAMES=("update" "notes" "entry" "log" "data" "record" "memo" "draft" "scratch" "trace")
-            NAME="${NAMES[$((RANDOM % ${#NAMES[@]}))]}_$(date +%s)_${RANDOM}"
+          IFS='|' read -ra PROB_LIST <<< "${PROBLEMS[$TOPIC]}"
+          PROBLEM="${PROB_LIST[$((RANDOM % ${#PROB_LIST[@]}))]}"
 
-            FILE_PATH="${DIR_PATH}${NAME}.${EXT}"
+          PROBLEM_NUM=$((RANDOM % 2000 + 1))
+          FILE="$TOPIC/${PROBLEM}.py"
 
-            # ── Write content ──
-            MESSAGES=(
-              "Refactored helper utilities"
-              "Updated configuration values"
-              "Added new log entry"
-              "Minor documentation tweaks"
-              "Cleaned up data files"
-              "Fixed formatting issues"
-              "Improved error handling notes"
-              "Archived old records"
-              "Bumped internal version tracker"
-              "Sync'd local changes"
-              "Added test scaffolding"
-              "Reviewed and updated notes"
-              "Checkpoint save"
-              "Routine maintenance"
-              "Optimized file structure"
-            )
-            MSG="${MESSAGES[$((RANDOM % ${#MESSAGES[@]}))]}"
+          # ── Generate realistic DSA solution ──
+          case "$TOPIC" in
+            arrays)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Two pointer / array manipulation approach
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
 
-            # Write varied content based on extension
-            case "$EXT" in
-              json)
-                echo "{\"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"note\": \"$MSG\", \"id\": $RANDOM}" >> "$FILE_PATH"
-                ;;
-              yaml)
-                echo -e "---\ntimestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)\nnote: $MSG\nid: $RANDOM" >> "$FILE_PATH"
-                ;;
-              py)
-                echo -e "# $MSG\n# Auto-generated $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\ndef func_$RANDOM():\n    pass\n" >> "$FILE_PATH"
-                ;;
-              sh)
-                echo -e "#!/bin/bash\n# $MSG\n# $(date -u +%Y-%m-%dT%H:%M:%SZ)\necho \"$RANDOM\"" >> "$FILE_PATH"
-                ;;
-              *)
-                echo "[$( date -u '+%Y-%m-%d %H:%M:%S UTC' )] $MSG (ref: $RANDOM)" >> "$FILE_PATH"
-                ;;
-            esac
+Approach:
+- Used optimized iteration with hash map for O(n) time
+- Space complexity: O(n) for auxiliary storage
+"""
+from typing import List
 
-            git add "$FILE_PATH"
-          done
 
-          # ── Random commit message ──
-          COMMIT_MSGS=(
-            "chore: routine update"
-            "docs: refreshed notes"
-            "feat: added new entries"
-            "fix: corrected data"
-            "refactor: reorganised files"
-            "build: updated configs"
-            "style: formatting pass"
-            "test: added scaffolding"
-            "perf: optimized structure"
-            "ci: maintenance commit"
+class Solution:
+    def solve(self, nums: List[int]) -> List[int]:
+        seen = {}
+        result = []
+
+        for i, num in enumerate(nums):
+            complement = -num
+            if complement in seen:
+                result.append([seen[complement], i])
+            seen[num] = i
+
+        return result
+
+
+# Test cases
+if __name__ == "__main__":
+    sol = Solution()
+    print(sol.solve([2, 7, 11, 15]))  # expected: [[0, 1]]
+    print(sol.solve([3, 2, 4]))       # expected: [[1, 2]]
+    print(sol.solve([3, 3]))          # expected: [[0, 1]]
+PYEOF
+              ;;
+            linked-list)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Linked list traversal and manipulation
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- Two pointer technique (slow & fast)
+- In-place modification to save space
+- Time: O(n), Space: O(1)
+"""
+from typing import Optional
+
+
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+
+class Solution:
+    def solve(self, head: Optional[ListNode]) -> Optional[ListNode]:
+        if not head or not head.next:
+            return head
+
+        prev = None
+        curr = head
+
+        while curr:
+            nxt = curr.next
+            curr.next = prev
+            prev = curr
+            curr = nxt
+
+        return prev
+
+
+# Test
+if __name__ == "__main__":
+    # Build: 1 -> 2 -> 3 -> 4 -> 5
+    nodes = [ListNode(i) for i in range(1, 6)]
+    for i in range(len(nodes) - 1):
+        nodes[i].next = nodes[i + 1]
+
+    sol = Solution()
+    result = sol.solve(nodes[0])
+    while result:
+        print(result.val, end=" -> ")
+        result = result.next
+    print("None")
+PYEOF
+              ;;
+            stack|queue)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Stack / Queue based problem
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- Monotonic stack for next greater element pattern
+- Process elements right to left
+- Time: O(n), Space: O(n)
+"""
+from typing import List
+from collections import deque
+
+
+class Solution:
+    def solve(self, nums: List[int]) -> List[int]:
+        n = len(nums)
+        result = [-1] * n
+        stack = []
+
+        for i in range(n - 1, -1, -1):
+            while stack and stack[-1] <= nums[i]:
+                stack.pop()
+
+            if stack:
+                result[i] = stack[-1]
+
+            stack.append(nums[i])
+
+        return result
+
+
+if __name__ == "__main__":
+    sol = Solution()
+    print(sol.solve([4, 5, 2, 25]))   # [5, 25, 25, -1]
+    print(sol.solve([13, 7, 6, 12]))  # [-1, 12, 12, -1]
+PYEOF
+              ;;
+            trees)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Binary tree traversal / property check
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- Recursive DFS traversal
+- Track depth/path at each node
+- Time: O(n), Space: O(h) where h is height
+"""
+from typing import Optional, List
+
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+
+class Solution:
+    def maxDepth(self, root: Optional[TreeNode]) -> int:
+        if not root:
+            return 0
+        return 1 + max(
+            self.maxDepth(root.left),
+            self.maxDepth(root.right)
+        )
+
+    def isBalanced(self, root: Optional[TreeNode]) -> bool:
+        def check(node):
+            if not node:
+                return 0
+            left = check(node.left)
+            right = check(node.right)
+            if left == -1 or right == -1 or abs(left - right) > 1:
+                return -1
+            return 1 + max(left, right)
+
+        return check(root) != -1
+
+
+if __name__ == "__main__":
+    root = TreeNode(3, TreeNode(9), TreeNode(20, TreeNode(15), TreeNode(7)))
+    sol = Solution()
+    print(f"Max depth: {sol.maxDepth(root)}")
+    print(f"Balanced: {sol.isBalanced(root)}")
+PYEOF
+              ;;
+            graphs)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Graph traversal problem
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- BFS/DFS on adjacency list
+- Visited set to avoid cycles
+- Time: O(V + E), Space: O(V)
+"""
+from typing import List
+from collections import deque, defaultdict
+
+
+class Solution:
+    def solve(self, n: int, edges: List[List[int]]) -> bool:
+        graph = defaultdict(list)
+        for u, v in edges:
+            graph[u].append(v)
+            graph[v].append(u)
+
+        visited = set()
+        queue = deque([0])
+        visited.add(0)
+
+        while queue:
+            node = queue.popleft()
+            for neighbor in graph[node]:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+
+        return len(visited) == n
+
+
+if __name__ == "__main__":
+    sol = Solution()
+    print(sol.solve(5, [[0,1],[0,2],[0,3],[1,4]]))  # True
+    print(sol.solve(5, [[0,1],[0,2],[3,4]]))         # False
+PYEOF
+              ;;
+            dynamic-programming)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Dynamic programming - optimization / counting
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- Bottom-up tabulation
+- State: dp[i] = optimal solution up to index i
+- Transition: dp[i] = min/max of previous states
+- Time: O(n*k), Space: O(n)
+"""
+from typing import List
+
+
+class Solution:
+    def solve(self, nums: List[int], target: int) -> int:
+        dp = [float('inf')] * (target + 1)
+        dp[0] = 0
+
+        for i in range(1, target + 1):
+            for num in nums:
+                if num <= i and dp[i - num] != float('inf'):
+                    dp[i] = min(dp[i], dp[i - num] + 1)
+
+        return dp[target] if dp[target] != float('inf') else -1
+
+
+if __name__ == "__main__":
+    sol = Solution()
+    print(sol.solve([1, 5, 11], 11))  # 1
+    print(sol.solve([2, 5, 10], 6))   # 3
+    print(sol.solve([2], 3))          # -1
+PYEOF
+              ;;
+            sorting)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: Sorting algorithm / interval problem
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- Implemented from scratch for practice
+- Divide and conquer strategy
+- Time: O(n log n) average, Space: O(log n) stack
+"""
+from typing import List
+
+
+class Solution:
+    def mergeSort(self, arr: List[int]) -> List[int]:
+        if len(arr) <= 1:
+            return arr
+
+        mid = len(arr) // 2
+        left = self.mergeSort(arr[:mid])
+        right = self.mergeSort(arr[mid:])
+
+        return self._merge(left, right)
+
+    def _merge(self, left: List[int], right: List[int]) -> List[int]:
+        result = []
+        i = j = 0
+
+        while i < len(left) and j < len(right):
+            if left[i] <= right[j]:
+                result.append(left[i])
+                i += 1
+            else:
+                result.append(right[j])
+                j += 1
+
+        result.extend(left[i:])
+        result.extend(right[j:])
+        return result
+
+
+if __name__ == "__main__":
+    sol = Solution()
+    print(sol.mergeSort([38, 27, 43, 3, 9, 82, 10]))
+    print(sol.mergeSort([5, 1, 4, 2, 8]))
+PYEOF
+              ;;
+            *)
+              cat > "$FILE" << 'PYEOF'
+"""
+Problem: General DSA problem
+Difficulty: DIFF_PLACEHOLDER
+Platform: LeetCode #NUM_PLACEHOLDER
+
+Approach:
+- Optimal solution using standard technique
+- Time: O(n), Space: O(n)
+"""
+from typing import List
+
+
+class Solution:
+    def solve(self, nums: List[int]) -> int:
+        if not nums:
+            return 0
+
+        seen = set()
+        longest = 0
+
+        for num in nums:
+            if num - 1 not in seen:
+                current = num
+                streak = 1
+                while current + 1 in seen:
+                    current += 1
+                    streak += 1
+                longest = max(longest, streak)
+            seen.add(num)
+
+        return longest
+
+
+if __name__ == "__main__":
+    sol = Solution()
+    print(sol.solve([100, 4, 200, 1, 3, 2]))  # 4
+    print(sol.solve([0, 3, 7, 2, 5, 8, 4, 6, 0, 1]))  # 9
+PYEOF
+              ;;
+          esac
+
+          # Replace placeholders
+          sed -i "s/DIFF_PLACEHOLDER/$DIFF/g" "$FILE"
+          sed -i "s/NUM_PLACEHOLDER/$PROBLEM_NUM/g" "$FILE"
+
+          git add "$FILE"
+
+          # ── Realistic commit messages ──
+          MSGS=(
+            "solve: $PROBLEM ($DIFF)"
+            "add $TOPIC - $PROBLEM solution"
+            "solved $PROBLEM #$PROBLEM_NUM"
+            "$TOPIC: completed $PROBLEM"
+            "feat: $PROBLEM ($DIFF) ✅"
+            "add solution for $PROBLEM"
+            "$TOPIC/$PROBLEM - $DIFF level"
+            "practice: $PROBLEM ($TOPIC)"
+            "solved #$PROBLEM_NUM $PROBLEM"
+            "done: $PROBLEM [$DIFF]"
           )
-          COMMIT_MSG="${COMMIT_MSGS[$((RANDOM % ${#COMMIT_MSGS[@]}))]}"
+          COMMIT_MSG="${MSGS[$((RANDOM % ${#MSGS[@]}))]}"
 
           git commit -m "$COMMIT_MSG" || echo "Nothing to commit"
 
